@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Garibook Leads Extractor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Noto+Sans+Bengali:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: plain, exact office tool; a coworker should finish in 30 seconds.
+   IDEA: a railway departures board: files in, three big counts out.
+   PICTURE: the drop zone itself, then the three hanging numerals.
+   COLOUR and TYPE: white, black, signal red #e4002b, one grey; Archivo expanded 800 + Archivo.
+   LAYOUT: strict left edge, thick top rules, big numerals in a wide left column. */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f2f2f2);--grey:light-dark(#6b6b6b,#9a9a9a);--line:light-dark(#d9d9d9,#2c2c2c);--soft:light-dark(#f4f4f4,#181818);--red:#e4002b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Archivo,"Noto Sans Bengali",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(28px,4vw,56px) max(5vw,16px);max-width:1240px;margin:0 auto}
+h1{font-size:clamp(34px,6vw,52px);line-height:1.05;font-weight:800;font-stretch:112%;margin:0 0 12px;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:800;font-stretch:112%;margin:0 0 12px;border-top:6px solid var(--ink);padding-top:12px}
+.lede{font-size:17px;max-width:62ch;margin:0;color:var(--ink)}
+.note{color:var(--grey);font-size:14px;margin:10px 0 0}
+#drop{margin-top:28px;border-top:10px solid var(--ink);background:var(--soft);padding:clamp(28px,5vw,56px) clamp(18px,4vw,44px);display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(16px,3vw,36px);align-items:center;cursor:pointer;outline-offset:4px;transition:background .15s}
+#drop.over{background:light-dark(#ffe9ee,#2a0d14)}
+#drop:focus-visible{outline:3px solid var(--red)}
+.arrow{width:clamp(64px,10vw,112px);aspect-ratio:1;border:6px solid var(--ink);display:grid;place-items:center}
+.arrow svg{width:55%;height:55%}
+.big{font-size:clamp(26px,4vw,40px);font-weight:800;font-stretch:112%;line-height:1.1;margin:0}
+.btn{font:inherit;font-weight:700;font-size:16px;min-height:44px;padding:10px 20px;border:2px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff;font-size:18px;padding:14px 26px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+#files{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0;padding:0;list-style:none}
+#files li{display:flex;align-items:center;gap:6px;border:1px solid var(--line);padding:4px 4px 4px 12px;font-size:14px;max-width:100%}
+#files li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#files button{font:inherit;border:0;background:none;color:var(--grey);min-width:36px;min-height:36px;cursor:pointer;font-size:18px}
+#status{min-height:1.5em;margin:14px 0 0;font-weight:600}
+#status.err{color:var(--red)}
+#results[hidden]{display:none}
+.counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:10px solid var(--ink);margin-bottom:28px}
+.count{padding:16px 16px 18px 0;border-right:1px solid var(--line)}
+.count:last-child{border-right:0}
+.count + .count{padding-left:16px}
+.num{font-size:clamp(54px,11vw,120px);font-weight:800;font-stretch:112%;line-height:.95;font-variant-numeric:tabular-nums;display:block}
+.count.rej .num{color:var(--red)}
+.lab{font-weight:700;font-size:17px}
+.sub{color:var(--grey);font-size:14px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:8px}
+#dlmsg{font-size:14px;color:var(--grey);margin:6px 0 0;min-height:1.4em}
+section.part{margin-top:40px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-weight:700;border-bottom:2px solid var(--ink);padding:8px 10px 8px 0}
+td{border-bottom:1px solid var(--line);padding:8px 10px 8px 0;vertical-align:top}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.ph{white-space:nowrap;font-variant-numeric:tabular-nums}
+td.reason{color:var(--red);font-weight:600}
+.empty{color:var(--grey)}
+footer{color:var(--grey);font-size:14px}
+pre,.scroll{overflow-x:auto}
+@media(max-width:600px){#drop{grid-template-columns:1fr}.counts{grid-template-columns:1fr}.count,.count+.count{border-right:0;border-bottom:1px solid var(--line);padding-left:0}
+table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--grey)}.stack td:empty{display:none}}
+@media(prefers-reduced-motion:reduce){#drop{transition:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<main class="band">
+  <h1>Leads Extractor</h1>
+  <p class="lede">Drop the marketing team's zip files. You get one Excel file with Bikes, Cars and Rejected sheets. Phone numbers are cut to 10 digits and dates show as year-month-day.</p>
+
+  <div id="drop" role="button" tabindex="0" aria-describedby="privacy">
+    <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 3v13M6 10l6 6 6-6M4 21h16"/></svg></div>
+    <div>
+      <p class="big">Drop zip files here</p>
+      <p class="note" style="margin-top:6px">or click to choose them. Unzipped .xls, .xlsx and .csv files work too.</p>
+    </div>
+  </div>
+  <input id="pick" type="file" multiple accept=".zip,.xls,.xlsx,.csv" hidden>
+  <p class="note" id="privacy">Files are read inside your own browser. Nothing is uploaded or saved anywhere.</p>
+  <ul id="files" aria-label="Chosen files"></ul>
+  <p id="status" role="status" aria-live="polite"></p>
+
+  <div id="results" hidden>
+    <div class="counts">
+      <div class="count"><span class="num" id="cBikes">0</span><span class="lab">Bikes</span><div class="sub">Bikes sheet</div></div>
+      <div class="count"><span class="num" id="cCars">0</span><span class="lab">Cars</span><div class="sub">Cars sheet</div></div>
+      <div class="count rej"><span class="num" id="cRejected">0</span><span class="lab">Rejected</span><div class="sub">CNG, pickup, truck, unclear</div></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="dl" type="button" disabled>Download Excel</button>
+      <button class="btn" id="reset" type="button">Start over</button>
+    </div>
+    <p id="dlmsg" aria-live="polite"></p>
+
+    <section class="part">
+      <h2>Rejected rows: quick check</h2>
+      <p class="note" style="margin:0 0 12px">These are also in the Rejected sheet. If one is a real bike or car lead, copy it across by hand.</p>
+      <div id="rejWrap"></div>
+    </section>
+
+    <section class="part">
+      <h2>Files read</h2>
+      <div id="logWrap"></div>
+    </section>
+  </div>
+</main>
+<footer class="band" style="padding-top:0">A spelling not recognised, or a new form added by marketing? Tell the data team so it can be added to the keyword list.</footer>
+
+<script>
+// ===== Leads Extractor core (browser + node). Port of leads_extractor.py =====
+const LX = (() => {
+  const KW = {"JUNK": {"CNG": ["cng", "সিএনজি", "সিনজি", "সিএনজী", "থ ১১", "থ-১১"], "Pickup": ["pickup", "pick up", "pik up", "pic up", "পিকআপ", "পিকাপ", "পিক আপ", "tata", "টাটা", "hilux", "navara", "double cabin", "single cabin", "ডাবল কেবিন", "সিঙ্গেল কেবিন", "isuzu", "dmax", "d-max"], "Truck/Van": ["truck", "ট্রাক", "lorry", "লরি", "covered van", "কাভার্ড ভ্যান", "ashok leyland", "eicher", "mini truck", "ফিট"], "Bus": ["bus", "বাস"], "Auto/Easy bike": ["easy bike", "easybike", "ইজি বাইক", "ইজিবাইক", "auto rickshaw", "autorickshaw", "অটো রিকশা", "অটোরিকশা", "rickshaw", "রিকশা", "leguna", "লেগুনা", "tempo", "টেম্পু", "mishuk", "মিশুক", "battery", "ব্যাটারি", "human haular", "হিউম্যান হলার"]}, "BIKE": ["bike", "motorcycle", "motor cycle", "motorbike", "scooter", "scooty", "বাইক", "মোটরসাইকেল", "মোটর সাইকেল", "স্কুটি", "ইসকুটি", "স্কুটার", "yamaha", "yahama", "yamha", "bajaj", "tvs", "hero", "runner", "lifan", "walton", "rks", "h power", "keeway", "zongshen", "aprilia", "vespa", "kawasaki", "ইয়ামাহা", "ইয়ামাহা", "বাজাজ", "টিভিএস", "হিরো", "হিরু", "রানার", "discover", "discovery", "pulsar", "platina", "ct100", "ct 100", "boxer", "city100", "city 100", "avenger", "apache", "apachi", "rtr", "stryker", "styger", "metro plus", "metro els", "metro 100", "raider", "radeon", "redim", "radim", "ntorq", "splendor", "splndr", "hunk", "ignitor", "xtreme", "xtream", "glamour", "passion", "thriller", "achiever", "maestro", "livo", "hornet", "honet", "sp125", "sp 125", "shine", "dream", "dirm", "xblade", "x blade", "x bullet", "cbz", "cb hornet", "cbr", "gixxer", "monotone", "monoton", "hayate", "hayati", "ayati", "fzs", "fz", "fazer", "fzx", "r15", "mt15", "saluto", "ray zr", "bullet", "centuro", "ডিসকভার", "পালসার", "প্লাটিনা", "অ্যাপাচি", "এপাচি", "মেট্রো প্লাস", "লিভো", "লিবু", "হর্নেট", "জিকসার", "জিক্সার", "মনোটোন", "হায়াতে", "এক্সব্লেড", "হানক", "হাংক", "স্প্লেন্ডার", "গ্লামার", "সেন্টু", "সেন্টুরো"], "CAR": ["car", "private car", "microbus", "micro bus", "sedan", "jeep", "কার", "প্রাইভেট কার", "মাইক্রো", "জীপ", "toyota", "tyota", "toyta", "toyato", "toyot", "nissan", "mitsubishi", "hyundai", "kia", "mazda", "mercedes", "bmw", "proton", "mg", "টয়োটা", "টয়োটা", "টোয়েটা", "টয়েটা", "টয়টা", "নিশান", "axio", "axcio", "aksio", "allion", "alion", "premio", "corolla", "carolla", "corola", "fielder", "filder", "fildar", "filtar", "folder", "noah", "noha", "nova noah", "hiace", "hayas", "hayes", "hayez", "haice", "probox", "4 box", "four box", "succeed", "vitz", "aqua", "prius", "belta", "starlet", "crown", "mark x", "chr", "c-hr", "voxy", "esquire", "sienta", "isis", "alphard", "harrier", "rav4", "land cruiser", "prado", "sunny", "bluebird", "x-trail", "pajero", "lancer", "civic", "vezel", "grace", "accord", "crv", "cr-v", "swift", "alto", "wagon r", "wagonr", "cultus", "ciaz", "ertiga", "vitara", "এক্সিও", "একজিও", "অ্যাক্সিও", "এক্সও", "এলিয়ন", "এলিয়ন", "প্রিমিও", "করোলা", "করলা", "ফিল্ডার", "ফিল্ডডার", "ফিল্ডার", "নোহা", "নোয়া", "হায়েস", "হাইস", "প্রোবক্স", "এক্স করোলা"], "AMB": ["honda", "suzuki", "sujuki", "mahindra", "হোন্ডা", "হন্ডা", "হুনডা", "সুজুকি", "মাহিন্দ্রা"], "SEAT_WORDS": {"এক": 1, "দুই": 2, "দু": 2, "তিন": 3, "চার": 4, "পাঁচ": 5, "পাচ": 5, "ছয়": 6, "সাত": 7, "আট": 8, "নয়": 9, "দশ": 10, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8}, "LV_BIKE": ["motorcycle", "motorbike", "scooter", "scooty", "yamaha", "yahama", "yamha", "bajaj", "runner", "lifan", "walton", "keeway", "zongshen", "aprilia", "vespa", "kawasaki", "discover", "discovery", "pulsar", "platina", "ct100", "boxer", "city100", "avenger", "apache", "apachi", "stryker", "styger", "raider", "radeon", "redim", "radim", "ntorq", "splendor", "splndr", "ignitor", "xtreme", "xtream", "glamour", "passion", "thriller", "achiever", "maestro", "hornet", "honet", "sp125", "shine", "dream", "xblade", "gixxer", "monotone", "monoton", "hayate", "hayati", "ayati", "fazer", "saluto", "bullet", "centuro"], "LV_CAR": ["microbus", "sedan", "toyota", "tyota", "toyta", "toyato", "toyot", "nissan", "mitsubishi", "hyundai", "mazda", "mercedes", "proton", "axcio", "aksio", "allion", "alion", "premio", "corolla", "carolla", "corola", "fielder", "filder", "fildar", "filtar", "folder", "hiace", "hayas", "hayes", "hayez", "haice", "probox", "succeed", "prius", "belta", "starlet", "crown", "esquire", "sienta", "alphard", "harrier", "prado", "sunny", "bluebird", "x-trail", "pajero", "lancer", "civic", "vezel", "grace", "accord", "swift", "wagonr", "cultus", "ertiga", "vitara"]};
+
+  // ---------- text helpers ----------
+  const BN = "০১২৩৪৫৬৭৮৯";
+  const bnDigits = s => s.replace(/[০-৯]/g, ch => String(BN.indexOf(ch)));
+  const norm = t => bnDigits(String(t ?? "").replace(/[​‌‍﻿]/g, ""))
+    .toLowerCase().replace(/।/g, " ").replace(/\s+/g, " ").trim();
+  const isBangla = w => /[ঀ-৿]/.test(w);
+  const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const reCache = new Map();
+  function contains(text, word) {
+    word = norm(word);
+    if (isBangla(word)) return text.includes(word) || text.replace(/ /g, "").includes(word.replace(/ /g, ""));
+    let re = reCache.get(word);
+    if (!re) { re = new RegExp("(?<![a-z])" + reEsc(word) + "(?![a-z])"); reCache.set(word, re); }
+    return re.test(text);
+  }
+  const hits = (text, words) => words.filter(w => contains(text, w));
+
+  // difflib.SequenceMatcher(a, b).ratio() without junk heuristics (strings < 200 chars)
+  function ratio(a, b) {
+    const b2j = {};
+    for (let j = 0; j < b.length; j++) (b2j[b[j]] ||= []).push(j);
+    function longest(alo, ahi, blo, bhi) {
+      let bi = alo, bj = blo, bs = 0, j2len = {};
+      for (let i = alo; i < ahi; i++) {
+        const nj = {};
+        for (const j of (b2j[a[i]] || [])) {
+          if (j < blo) continue;
+          if (j >= bhi) break;
+          const k = nj[j] = (j2len[j - 1] || 0) + 1;
+          if (k > bs) { bi = i - k + 1; bj = j - k + 1; bs = k; }
+        }
+        j2len = nj;
+      }
+      return [bi, bj, bs];
+    }
+    let matches = 0;
+    const q = [[0, a.length, 0, b.length]];
+    while (q.length) {
+      const [alo, ahi, blo, bhi] = q.pop();
+      const [i, j, k] = longest(alo, ahi, blo, bhi);
+      if (k) {
+        matches += k;
+        if (alo < i && blo < j) q.push([alo, i, blo, j]);
+        if (i + k < ahi && j + k < bhi) q.push([i + k, ahi, j + k, bhi]);
+      }
+    }
+    const T = a.length + b.length;
+    return T ? 2 * matches / T : 1;
+  }
+  function closest(word, vocab, cutoff = 0.8) {
+    let best = null;
+    for (const x of vocab) {
+      const s = ratio(x, word);
+      if (s >= cutoff && (!best || s > best[0] || (s === best[0] && x > best[1]))) best = [s, x];
+    }
+    return best && best[1];
+  }
+  const fuzzyHits = (text, vocab) => (text.match(/[a-z]{5,}/g) || []).map(t => closest(t, vocab)).filter(Boolean);
+
+  function cleanPhone(v) {
+    const raw = String(v ?? "").trim();
+    const d = bnDigits(raw).replace(/\D/g, "");
+    return d.length >= 10 ? d.slice(-10) : raw;
+  }
+  function cleanDate(v) {
+    const raw = String(v ?? "").trim();
+    let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+    m = raw.split(" ")[0].match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);   // m/d/yyyy like Excel US
+    if (m) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return { y, m: +m[1], d: +m[2] }; }
+    return raw;
+  }
+  function parseSeats(v) {
+    const t = norm(v);
+    if (!t) return null;
+    if (hits(t, ["bike", "বাইক", "motorcycle", "মোটরসাইকেল"]).length) return "Bike";
+    const m = t.match(/\d+/);
+    let n = m ? +m[0] : null;
+    if (n === null) for (const [w, val] of Object.entries(KW.SEAT_WORDS)) if (contains(t, w)) { n = val; break; }
+    if (n === null) return null;
+    if (n === 1 || n === 2) return "Bike";
+    if (n >= 4 && n <= 9) return "Car";
+    return null;
+  }
+
+  // ---------- classifier ----------
+  function classify(model, seats, isBikeForm) {
+    const m = norm(model), s = norm(seats);
+    for (const [label, words] of Object.entries(KW.JUNK))
+      if (hits(m, words).length || (label === "Truck/Van" && hits(s, ["ফিট", "feet", "ton", "টন"]).length))
+        return ["Rejected", label];
+    let car = hits(m, KW.CAR), bike = hits(m, KW.BIKE);
+    const amb = hits(m, KW.AMB);
+    if (!car.length && !bike.length) {
+      car = fuzzyHits(m, KW.LV_CAR); bike = fuzzyHits(m, KW.LV_BIKE);
+      if (car.length && bike.length) car = bike = [];
+    }
+    let text = null;
+    if (car.length && !bike.length) text = "Car";
+    else if (bike.length && !car.length) text = "Bike";
+    else if (car.length && bike.length) text = "Conflict";
+    else if (amb.length) text = "Bike";
+    const seat = parseSeats(seats);
+    if (isBikeForm) return ["Bike", ""];
+    if (text === "Conflict") return seat ? [seat, ""] : ["Rejected", `Unclear: mentions both bike and car (${[...bike, ...car].join(", ")})`];
+    if (text && seat && text !== seat) return ["Rejected", `Check: model looks like ${text} but seats say ${seat}`];
+    if (text) return [text, ""];
+    if (seat) return [seat, ""];
+    return ["Rejected", "No usable vehicle info"];
+  }
+
+  // ---------- zip reading ----------
+  const u8dec = new TextDecoder("utf-8");
+  async function inflateRaw(bytes) {
+    const ds = new DecompressionStream("deflate-raw");
+    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  async function unzip(buf) {
+    const u = new Uint8Array(buf), dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+    let e = -1;
+    for (let i = u.length - 22; i >= Math.max(0, u.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) throw new Error("not a valid zip file");
+    const count = dv.getUint16(e + 10, true);
+    let p = dv.getUint32(e + 16, true);
+    const out = [];
+    for (let n = 0; n < count; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("damaged zip file");
+      const flags = dv.getUint16(p + 8, true), method = dv.getUint16(p + 10, true);
+      const csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true);
+      const xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      const name = u8dec.decode(u.subarray(p + 46, p + 46 + nlen));
+      p += 46 + nlen + xlen + clen;
+      if (name.endsWith("/")) continue;
+      out.push({
+        name,
+        read: async () => {
+          if (flags & 1) throw new Error("password-protected zip");
+          const start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true);
+          const raw = u.subarray(start, start + csize);
+          if (method === 0) return raw;
+          if (method === 8) return inflateRaw(raw);
+          throw new Error("unsupported zip compression");
+        },
+      });
+    }
+    return out;
+  }
+
+  // ---------- spreadsheet readers ----------
+  const decodeEnt = s => s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, c) => {
+    const k = c.toLowerCase();
+    if (k[0] === "#") return String.fromCodePoint(k[1] === "x" ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10));
+    return { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" }[k];
+  });
+  const textOf = xml => decodeEnt(xml.replace(/<[^>]*>/g, "").replace(/\r\n?/g, "\n"));
+
+  function readSpreadsheetML(xml) {
+    const ws = xml.match(/<(?:ss:)?Worksheet\b[\s\S]*?<\/(?:ss:)?Worksheet>/);
+    if (!ws) return [];
+    const rows = [];
+    const rowRe = /<(?:ss:)?Row\b[^>]*?(?:\/>|>([\s\S]*?)<\/(?:ss:)?Row>)/g;
+    let r;
+    while ((r = rowRe.exec(ws[0]))) {
+      const row = [];
+      const cellRe = /<(?:ss:)?Cell\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:ss:)?Cell>)/g;
+      let c;
+      while ((c = cellRe.exec(r[1] || ""))) {
+        const idx = (c[1].match(/(?:ss:)?Index="(\d+)"/) || [])[1];
+        if (idx) while (row.length < +idx - 1) row.push("");
+        const d = (c[2] || "").match(/<(?:ss:)?Data\b[^>]*>([\s\S]*?)<\/(?:ss:)?Data>/);
+        row.push(d ? textOf(d[1]) : "");
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  async function readXlsx(buf) {
+    const entries = await unzip(buf);
+    const get = async n => { const e = entries.find(x => x.name === n); return e ? u8dec.decode(await e.read()) : null; };
+    const sst = [];
+    const ss = await get("xl/sharedStrings.xml");
+    if (ss) for (const si of ss.match(/<si>[\s\S]*?<\/si>/g) || [])
+      sst.push((si.match(/<t\b[^>]*>[\s\S]*?<\/t>/g) || []).map(textOf).join(""));
+    const sheetName = entries.map(e => e.name).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort()[0];
+    const xml = sheetName ? await get(sheetName) : "";
+    const col = ref => { let n = 0; for (const ch of ref.replace(/\d+/g, "")) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+    const rows = [];
+    for (const rx of xml.match(/<row\b[\s\S]*?(?:<\/row>|\/>)/g) || []) {
+      const row = [];
+      for (const cm of rx.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const ref = (cm[1].match(/r="([A-Z]+\d+)"/) || [])[1], t = (cm[1].match(/t="(\w+)"/) || [])[1];
+        const body = cm[2] || "";
+        let v = "";
+        if (t === "inlineStr") v = (body.match(/<t\b[^>]*>[\s\S]*?<\/t>/g) || []).map(textOf).join("");
+        else { const vm = body.match(/<v>([\s\S]*?)<\/v>/); v = vm ? textOf(vm[1]) : ""; if (t === "s") v = sst[+v] ?? ""; }
+        const i = ref ? col(ref) : row.length;
+        while (row.length < i) row.push("");
+        row[i] = v;
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function readCsv(text) {
+    const first = text.split("\n")[0];
+    const delim = [",", ";", "\t"].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+    const rows = []; let row = [], f = "", q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === delim) { row.push(f); f = ""; }
+      else if (ch === "\n") { row.push(f.replace(/\r$/, "")); rows.push(row); row = []; f = ""; }
+      else f += ch;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows;
+  }
+
+  async function readAny(bytes) {
+    const head = u8dec.decode(bytes.subarray(0, 2000));
+    if (head.trimStart().startsWith("<?xml") || head.includes("<Workbook")) return readSpreadsheetML(u8dec.decode(bytes));
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b) return readXlsx(bytes);
+    if (bytes[0] === 0xd0 && bytes[1] === 0xcf) throw new Error("old binary .xls format: open it in Excel and save as .xlsx");
+    return readCsv(u8dec.decode(bytes).replace(/^﻿/, ""));
+  }
+
+  const SHEET_EXT = /\.(xls|xlsx|csv)$/i;
+  // files: [{name, bytes: Uint8Array}] -> [{label, bytes}]
+  async function expand(files) {
+    const out = [];
+    for (const f of [...files].sort((a, b) => a.name.localeCompare(b.name))) {
+      if (/\.zip$/i.test(f.name)) {
+        for (const e of await unzip(f.bytes)) {
+          const base = e.name.split("/").pop();
+          if (e.name.includes("__MACOSX") || base.startsWith("~$") || !SHEET_EXT.test(base)) continue;
+          out.push({ label: `${f.name} > ${base}`, bytes: await e.read() });
+        }
+      } else if (SHEET_EXT.test(f.name)) out.push({ label: f.name, bytes: f.bytes });
+    }
+    return out;
+  }
+
+  // ---------- columns ----------
+  function findCol(headers, needles, exact) {
+    const h = headers.map(norm);
+    if (exact) { const i = h.indexOf(exact); if (i >= 0) return i; }
+    const i = h.findIndex(x => needles.some(n => x.includes(n)));
+    return i >= 0 ? i : null;
+  }
+  const mapColumns = h => ({
+    date: findCol(h, ["created_time", "created"], "created_time"),
+    name: findCol(h, ["full_name", "নাম"], "full_name"),
+    phone: findCol(h, ["phone_number", "phone"], "phone_number"),
+    alt_phone: findCol(h, ["মোবাইল", "mobile"]),
+    model: findCol(h, ["মডেল", "model", "ব্র্যান্ড", "brand"]),
+    seats: findCol(h, ["কত_সিট", "কত সিট", "সিটের", "seat"]),
+    own: findCol(h, ["নিজের", "own"]),
+    city: findCol(h, ["city", "শহর", "জেলা"], "city"),
+    ad_name: findCol(h, ["ad_name"], "ad_name"),
+    campaign: findCol(h, ["campaign_name"], "campaign_name"),
+  });
+  function isBikeOnlyForm(headers, cols, first) {
+    if (cols.model !== null && hits(norm(headers[cols.model]), ["বাইক", "bike"]).length) return true;
+    const camp = cols.campaign !== null && cols.campaign < first.length ? norm(first[cols.campaign]) : "";
+    return hits(camp, ["bike", "biker"]).length > 0 && !hits(camp, ["car"]).length;
+  }
+
+  // ---------- main ----------
+  async function processFiles(files) {
+    const out = { Bikes: [], Cars: [], Rejected: [] }, log = [];
+    for (const { label, bytes } of await expand(files)) {
+      let rows;
+      try { rows = await readAny(bytes); }
+      catch (err) { log.push({ label, error: `Could not read: ${err.message}` }); continue; }
+      rows = rows.filter(r => r.some(c => String(c ?? "").trim()));
+      if (!rows.length) { log.push({ label, error: "Empty file" }); continue; }
+      const [headers, ...body] = rows, cols = mapColumns(headers);
+      if (cols.phone === null && cols.model === null) { log.push({ label, error: "Columns not recognised, skipped" }); continue; }
+      const bikeForm = isBikeOnlyForm(headers, cols, body[0] || []);
+      const g = (r, k) => cols[k] !== null && cols[k] < r.length ? String(r[cols[k]] ?? "").trim() : "";
+      const c = { Bikes: 0, Cars: 0, Rejected: 0 };
+      for (const r of body) {
+        const [cat, reason] = classify(g(r, "model"), g(r, "seats"), bikeForm);
+        const sheet = cat === "Bike" ? "Bikes" : cat === "Car" ? "Cars" : "Rejected";
+        const rec = [cleanDate(g(r, "date")), cleanPhone(g(r, "phone")), g(r, "name"), g(r, "model"),
+          cols.alt_phone !== null ? cleanPhone(g(r, "alt_phone")) : "", g(r, "seats"), g(r, "own"), g(r, "city"),
+          g(r, "ad_name") || label];
+        if (sheet === "Rejected") rec.push(reason);
+        out[sheet].push(rec); c[sheet]++;
+      }
+      log.push({ label, form: bikeForm ? "Bike form" : "Car / mixed form", rows: body.length, ...c });
+    }
+    return { out, log };
+  }
+
+  // ---------- xlsx writer (stored zip, no libraries) ----------
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = b => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  function zip(files) {
+    const enc = new TextEncoder(), parts = [], central = [];
+    let off = 0;
+    for (const [name, text] of files) {
+      const nb = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x800, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nb.length, true);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x800, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, nb.length, true); ch.setUint32(42, off, true);
+      parts.push(new Uint8Array(lh.buffer), nb, data);
+      central.push(new Uint8Array(ch.buffer), nb);
+      off += 30 + nb.length + data.length;
+    }
+    const csize = central.reduce((s, x) => s + x.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, csize, true); end.setUint32(16, off, true);
+    const all = [...parts, ...central, new Uint8Array(end.buffer)];
+    const res = new Uint8Array(all.reduce((s, x) => s + x.length, 0));
+    let p = 0; for (const x of all) { res.set(x, p); p += x.length; }
+    return res;
+  }
+  const xesc = s => String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const colL = i => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26; } return s; };
+  const serial = ({ y, m, d }) => (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 864e5;
+  const OUT_COLS = ["Date", "Phone", "Name", "Vehicle Model", "Form Mobile", "Seats", "Own Vehicle", "City", "Source"];
+  const WIDTHS = [12, 13, 26, 34, 13, 10, 12, 14, 38, 45];
+
+  function buildXlsx(out) {
+    const names = ["Bikes", "Cars", "Rejected"];
+    const sheetXml = (name, hs) => {
+      const cols = OUT_COLS.concat(name === "Rejected" ? ["Reason"] : []);
+      const rows = [cols, ...out[name]];
+      const data = rows.map((r, ri) => `<row r="${ri + 1}">` + r.map((v, ci) => {
+        const ref = colL(ci) + (ri + 1);
+        if (ri === 0) return `<c r="${ref}" s="${hs}" t="inlineStr"><is><t>${xesc(v)}</t></is></c>`;
+        if (v && typeof v === "object") return `<c r="${ref}" s="4"><v>${serial(v)}</v></c>`;
+        if (v === "" || v == null) return "";
+        const s = ci === 1 || ci === 4 ? ' s="5"' : "";
+        return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`;
+      }).join("") + "</row>").join("");
+      const last = colL(cols.length - 1) + rows.length;
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:${last}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${cols.map((_, i) => `<col min="${i + 1}" max="${i + 1}" width="${WIDTHS[i]}" customWidth="1"/>`).join("")}</cols><sheetData>${data}</sheetData><autoFilter ref="A1:${last}"/></worksheet>`;
+    };
+    const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${names.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`;
+    const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+    const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${names.map((n, i) => `<sheet name="${n}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets><definedNames>${names.map((n, i) => `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${n}'!$A$1:$${colL(n === "Rejected" ? 9 : 8)}$${out[n].length + 1}</definedName>`).join("")}</definedNames></workbook>`;
+    const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${names.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+    const fill = c => `<fill><patternFill patternType="solid"><fgColor rgb="FF${c}"/><bgColor indexed="64"/></patternFill></fill>`;
+    const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fill("2E7D32")}${fill("1565C0")}${fill("C62828")}</fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="1" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    return zip([["[Content_Types].xml", ct], ["_rels/.rels", rels], ["xl/workbook.xml", wb], ["xl/_rels/workbook.xml.rels", wbRels], ["xl/styles.xml", styles],
+      ...names.map((n, i) => [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(n, i + 1)])]);
+  }
+
+  return { processFiles, buildXlsx, classify, cleanPhone, cleanDate };
+})();
+if (typeof module !== "undefined") module.exports = LX;
+
+</script>
+<script>
+{
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const drop = $("drop"), pick = $("pick"), status = $("status"), dlBtn = $("dl"), dlmsg = $("dlmsg");
+  let chosen = [];          // [{name, bytes}]
+  let xlsx = null, fileName = "";
+  let downloads = null;
+
+  const setStatus = (t, err) => { status.textContent = t; status.className = err ? "err" : ""; };
+  const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+
+  function renderFiles() {
+    $("files").innerHTML = chosen.map((f, i) =>
+      `<li><span title="${esc(f.name)}">${esc(f.name)}</span><button type="button" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></li>`).join("");
+  }
+  function updateDl() { dlBtn.disabled = !xlsx; }
+
+  async function run() {
+    renderFiles();
+    xlsx = null; updateDl(); dlmsg.textContent = "";
+    if (!chosen.length) { $("results").hidden = true; setStatus(""); return; }
+    setStatus("Reading files…");
+    try {
+      const { out, log } = await LX.processFiles(chosen);
+      const total = out.Bikes.length + out.Cars.length + out.Rejected.length;
+      if (!total) { $("results").hidden = true; setStatus("No lead rows found in these files. Check that they are the lead zip files.", true); renderLog(log); return; }
+      for (const k of ["Bikes", "Cars", "Rejected"]) $("c" + k).textContent = out[k].length;
+      renderRejected(out.Rejected);
+      renderLog(log);
+      xlsx = LX.buildXlsx(out);
+      fileName = `Leads_Cleaned_${stamp()}.xlsx`;
+      $("results").hidden = false;
+      const bad = log.filter(l => l.error).length;
+      setStatus(`${total} leads from ${log.length - bad} file${log.length - bad === 1 ? "" : "s"}.` + (bad ? ` ${bad} file${bad === 1 ? "" : "s"} could not be read; see below.` : " Ready to download."), bad > 0);
+      updateDl();
+    } catch (e) {
+      $("results").hidden = true;
+      setStatus("Something went wrong: " + e.message, true);
+    }
+  }
+
+  function renderRejected(rows) {
+    if (!rows.length) { $("rejWrap").innerHTML = '<p class="empty">Nothing rejected today.</p>'; return; }
+    $("rejWrap").innerHTML = `<table class="stack"><thead><tr><th>Name</th><th>Phone</th><th>Vehicle model</th><th>Seats</th><th>Reason</th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td>${esc(r[2])}</td><td class="ph">${esc(r[1])}</td><td>${esc(r[3])}</td><td>${esc(r[5])}</td><td class="reason">${esc(r[9])}</td></tr>`).join("") + "</tbody></table>";
+  }
+  function renderLog(log) {
+    $("logWrap").innerHTML = `<table class="stack"><thead><tr><th>File</th><th>Type</th><th class="n">Rows</th><th class="n">Bikes</th><th class="n">Cars</th><th class="n">Rejected</th></tr></thead><tbody>` +
+      log.map(l => l.error
+        ? `<tr><td>${esc(l.label)}</td><td class="reason" colspan="5">${esc(l.error)}</td></tr>`
+        : `<tr><td>${esc(l.label)}</td><td style="white-space:nowrap">${esc(l.form)}</td><td class="n">${l.rows}</td><td class="n">${l.Bikes}</td><td class="n">${l.Cars}</td><td class="n">${l.Rejected}</td></tr>`).join("") + "</tbody></table>";
+  }
+
+  async function addFiles(list) {
+    const fresh = [...list].filter(f => /\.(zip|xls|xlsx|csv)$/i.test(f.name));
+    if (!fresh.length) { setStatus("Those aren't zip or Excel files.", true); return; }
+    for (const f of fresh) {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const i = chosen.findIndex(c => c.name === f.name);
+      if (i >= 0) chosen[i] = { name: f.name, bytes }; else chosen.push({ name: f.name, bytes });
+    }
+    run();
+  }
+
+  drop.addEventListener("click", () => pick.click());
+  drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick.click(); } });
+  pick.addEventListener("change", () => { addFiles(pick.files); pick.value = ""; });
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => e.preventDefault());
+  $("files").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) { chosen.splice(+b.dataset.i, 1); run(); } });
+  $("reset").addEventListener("click", () => { chosen = []; run(); drop.focus(); });
+
+  function browserDownload() {
+    const url = URL.createObjectURL(new Blob([xlsx], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    dlmsg.textContent = `Downloaded ${fileName}`;
+  }
+
+  dlBtn.addEventListener("click", async () => {
+    if (!xlsx) return;
+    dlmsg.textContent = "";
+    if (!downloads) { browserDownload(); return; }
+    try {
+      await downloads.save({ filename: fileName, data: new Blob([xlsx]) });
+      dlmsg.textContent = `Saved ${fileName}`;
+    } catch (e) {
+      const c = e && e.code;
+      dlmsg.textContent = c === "declined" ? "Download cancelled." :
+        c === "rate_limited" ? "A save prompt is already open. Try again in a moment." :
+        "Download isn't available here. Try again in a desktop browser.";
+    }
+  });
+
+  // Inside claude.ai the page must use the platform's downloads capability; anywhere else, a normal download.
+  if (window.claude && typeof window.claude.use === "function")
+    Promise.resolve(window.claude.use("downloads")).then(d => { downloads = d; }, () => {});
+}
+</script>
+</body>
+</html>
